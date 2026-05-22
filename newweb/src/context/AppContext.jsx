@@ -1,8 +1,12 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import toast from 'react-hot-toast';
+import { getCurrentTime, getTodayDate } from '../utils/helpers';
 
 export const AppContext = createContext();
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+
+export const STATUS = { IDLE: 'idle', WORKING: 'working', BREAK: 'break', DONE: 'done' };
 
 export function AppProvider({ children }) {
   const [tasks, setTasks] = useState([]);
@@ -13,6 +17,57 @@ export function AppProvider({ children }) {
     if (isLoggedIn && saved) return JSON.parse(saved);
     return null;
   });
+
+  // --- Lifted Attendance Timer States ---
+  const [status, setStatus] = useState(() => localStorage.getItem('timer_status') || 'idle');
+  const [seconds, setSeconds] = useState(() => Number(localStorage.getItem('timer_seconds')) || 0);
+  const [breakSeconds, setBreakSeconds] = useState(() => Number(localStorage.getItem('timer_breakSeconds')) || 0);
+  const [punchInTime, setPunchInTime] = useState(() => localStorage.getItem('timer_punchInTime') || null);
+  const [punchOutTime, setPunchOutTime] = useState(() => localStorage.getItem('timer_punchOutTime') || null);
+  const [todayId, setTodayId] = useState(() => Number(localStorage.getItem('timer_todayId')) || null);
+  const [isOnBreak, setIsOnBreak] = useState(() => localStorage.getItem('timer_isOnBreak') === 'true');
+  
+  // Idle Alert States
+  const [isIdleModalOpen, setIsIdleModalOpen] = useState(false);
+  const [idleAlertTriggered, setIdleAlertTriggered] = useState(false);
+  const [lastActivity, setLastActivity] = useState(Date.now());
+
+  // Inactivity Settings (Auto-Break)
+  const [idleSettings, setIdleSettings] = useState(() => {
+    const saved = localStorage.getItem('idle_settings');
+    if (saved) return JSON.parse(saved);
+    return {
+      autoBreakEnabled: true,
+      idleTimeout: 300000 // 5 minutes in milliseconds (300000 ms)
+    };
+  });
+
+  // Sync Timer States to localStorage
+  useEffect(() => {
+    localStorage.setItem('timer_status', status);
+    localStorage.setItem('timer_seconds', seconds);
+    localStorage.setItem('timer_breakSeconds', breakSeconds);
+    localStorage.setItem('timer_punchInTime', punchInTime || '');
+    localStorage.setItem('timer_punchOutTime', punchOutTime || '');
+    localStorage.setItem('timer_todayId', todayId || '');
+    localStorage.setItem('timer_isOnBreak', isOnBreak);
+  }, [status, seconds, breakSeconds, punchInTime, punchOutTime, todayId, isOnBreak]);
+
+  // Sync Settings to localStorage
+  useEffect(() => {
+    localStorage.setItem('idle_settings', JSON.stringify(idleSettings));
+  }, [idleSettings]);
+
+  // Timer Tick Interval
+  useEffect(() => {
+    let interval;
+    if (status === STATUS.WORKING) {
+      interval = setInterval(() => setSeconds((s) => s + 1), 1000);
+    } else if (status === STATUS.BREAK) {
+      interval = setInterval(() => setBreakSeconds((s) => s + 1), 1000);
+    }
+    return () => clearInterval(interval);
+  }, [status]);
 
   const fetchTasks = useCallback(async () => {
     if (!user || !user.id) return;
@@ -78,8 +133,24 @@ export function AppProvider({ children }) {
     setUser(null);
     setTasks([]);
     setAttendance([]);
+    setStatus(STATUS.IDLE);
+    setSeconds(0);
+    setBreakSeconds(0);
+    setPunchInTime(null);
+    setPunchOutTime(null);
+    setTodayId(null);
+    setIsOnBreak(false);
+    setIsIdleModalOpen(false);
+    setIdleAlertTriggered(false);
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userProfile');
+    localStorage.removeItem('timer_status');
+    localStorage.removeItem('timer_seconds');
+    localStorage.removeItem('timer_breakSeconds');
+    localStorage.removeItem('timer_punchInTime');
+    localStorage.removeItem('timer_punchOutTime');
+    localStorage.removeItem('timer_todayId');
+    localStorage.removeItem('timer_isOnBreak');
   };
 
   const addTask = async (task) => {
@@ -213,13 +284,133 @@ export function AppProvider({ children }) {
     }
   };
 
+  // --- Clock Action Handlers (Moved Globally) ---
+  const handlePunchIn = async () => {
+    const now = getCurrentTime();
+    setPunchInTime(now);
+    setStatus(STATUS.WORKING);
+    setSeconds(0);
+    setBreakSeconds(0);
+    setIsOnBreak(false);
+    const dbId = await addAttendance({ 
+      date: getTodayDate(), 
+      punchIn: now, 
+      punchOut: '-', 
+      breakTime: '0 min', 
+      totalHours: '-', 
+      status: 'present' 
+    });
+    if (dbId) {
+      setTodayId(dbId);
+    }
+    toast.success(`Punched in at ${now} 🎉`);
+  };
+
+  const handleBreakStart = useCallback(() => {
+    const now = getCurrentTime();
+    setIsOnBreak(true);
+    setStatus(STATUS.BREAK);
+    if (todayId) {
+      updateAttendance(todayId, { breakStart: now });
+    }
+  }, [todayId]);
+
+  const handleBreakEnd = useCallback(() => {
+    const now = getCurrentTime();
+    setIsOnBreak(false);
+    setStatus(STATUS.WORKING);
+    if (todayId) {
+      updateAttendance(todayId, { breakEnd: now });
+    }
+  }, [todayId]);
+
+  const handlePunchOut = () => {
+    const now = getCurrentTime();
+    setPunchOutTime(now);
+    setStatus(STATUS.DONE);
+    const totalMins = Math.floor(seconds / 60);
+    const breakMins = Math.floor(breakSeconds / 60);
+    const netMins = totalMins - breakMins;
+    const h = Math.floor(netMins / 60);
+    const m = netMins % 60;
+    const totalStr = `${h}h ${m}m`;
+    if (todayId) {
+      updateAttendance(todayId, { punchOut: now, breakTime: `${breakMins} min`, totalHours: totalStr });
+    }
+    toast.success(`Punched out at ${now}. Total: ${totalStr}`);
+  };
+
+  // --- Active Inactivity Tracker & Auto-Resume ---
+  useEffect(() => {
+    if (!user) return;
+
+    const handleActivity = () => {
+      setLastActivity(Date.now());
+
+      // AUTO-RESUME: If the user is on auto-break and makes any movement, automatically resume!
+      if (status === STATUS.BREAK && idleAlertTriggered) {
+        setIdleAlertTriggered(false);
+        setIsIdleModalOpen(false);
+        handleBreakEnd();
+        toast.success("Welcome back! Your work session has resumed. ⚡");
+      }
+    };
+
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+    window.addEventListener('click', handleActivity);
+    window.addEventListener('scroll', handleActivity);
+    window.addEventListener('touchstart', handleActivity);
+
+    return () => {
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('click', handleActivity);
+      window.removeEventListener('scroll', handleActivity);
+      window.removeEventListener('touchstart', handleActivity);
+    };
+  }, [user, status, idleAlertTriggered, handleBreakEnd]);
+
+  // --- Inactivity Idle Checker ---
+  useEffect(() => {
+    if (!user || status !== STATUS.WORKING || !idleSettings.autoBreakEnabled) return;
+
+    const checkIdle = setInterval(() => {
+      const elapsed = Date.now() - lastActivity;
+      if (elapsed >= idleSettings.idleTimeout) {
+        // Trigger idle break!
+        setIdleAlertTriggered(true);
+        setIsIdleModalOpen(true);
+        handleBreakStart();
+        toast('Idle detected! Automatic break started ☕', { icon: '⏸', duration: 4000 });
+      }
+    }, 1000); // Check every second
+
+    return () => clearInterval(checkIdle);
+  }, [user, status, lastActivity, idleSettings, handleBreakStart]);
+
   return (
     <AppContext.Provider
       value={{
         tasks, addTask, updateTask, deleteTask, toggleTask,
         attendance, addAttendance, updateAttendance, deleteAttendance,
         user, updateUser, setUser,
-        registerUser, loginUser, logoutUser
+        registerUser, loginUser, logoutUser,
+        
+        // Timer states
+        status, setStatus,
+        seconds, setSeconds,
+        breakSeconds, setBreakSeconds,
+        punchInTime, setPunchInTime,
+        punchOutTime, setPunchOutTime,
+        todayId, setTodayId,
+        isOnBreak, setIsOnBreak,
+        isIdleModalOpen, setIsIdleModalOpen,
+        idleAlertTriggered, setIdleAlertTriggered,
+        idleSettings, setIdleSettings,
+        
+        // Handlers
+        handlePunchIn, handleBreakStart, handleBreakEnd, handlePunchOut
       }}
     >
       {children}

@@ -1,13 +1,13 @@
 import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
-import { FiUser, FiMail, FiPhone, FiMapPin, FiBriefcase, FiBell, FiSun, FiMoon, FiSave, FiCamera, FiLock } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiMapPin, FiBriefcase, FiBell, FiSun, FiMoon, FiSave, FiCamera, FiLock, FiCoffee } from 'react-icons/fi';
 import { AppContext } from '../context/AppContext';
 import { ThemeContext } from '../context/ThemeContext';
 import { currentUser } from '../data/dummyData';
 import toast from 'react-hot-toast';
 
 function Settings() {
-  const { user, updateUser } = useContext(AppContext);
+  const { user, updateUser, idleSettings, setIdleSettings } = useContext(AppContext);
   const { isDark, toggleTheme } = useContext(ThemeContext);
   const displayUser = user || currentUser;
 
@@ -191,6 +191,69 @@ function Settings() {
               className="absolute top-1 w-4 h-4 bg-white rounded-full shadow"
             />
           </button>
+        </div>
+      </motion.div>
+
+      {/* Productivity & Auto-Break Preferences */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow border border-gray-100 dark:border-gray-700"
+      >
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-5 flex items-center gap-2">
+          <FiCoffee className="w-5 h-5 text-amber-500" /> Productivity & Idle Settings
+        </h2>
+        
+        <div className="space-y-4">
+          {/* Toggle Auto Break */}
+          <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl">
+            <div>
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Automatic Break on Idle</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Automatically trigger a break if you go inactive</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const nextSettings = { ...idleSettings, autoBreakEnabled: !idleSettings.autoBreakEnabled };
+                setIdleSettings(nextSettings);
+                toast.success(`Auto-Break on Idle ${nextSettings.autoBreakEnabled ? 'enabled' : 'disabled'}`);
+              }}
+              className={`relative w-12 h-6 rounded-full transition-all duration-300 ${idleSettings.autoBreakEnabled ? 'bg-indigo-600' : 'bg-gray-200 dark:bg-gray-600'}`}
+            >
+              <motion.span
+                animate={{ x: idleSettings.autoBreakEnabled ? 24 : 2 }}
+                transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                className="absolute top-1 w-4 h-4 bg-white rounded-full shadow"
+              />
+            </button>
+          </div>
+
+          {/* Idle Timeout Dropdown */}
+          {idleSettings.autoBreakEnabled && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-xl gap-3">
+              <div>
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Inactivity Timeout Limit</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Trigger break after this duration of keyboard/mouse inactivity</p>
+              </div>
+              <select
+                value={idleSettings.idleTimeout}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  const nextSettings = { ...idleSettings, idleTimeout: val };
+                  setIdleSettings(nextSettings);
+                  toast.success(`Inactivity limit set to ${val === 10000 ? '10 Seconds (Debug Mode)' : `${val / 60000} Minutes`}`);
+                }}
+                className="px-3 py-2 text-sm border border-gray-200 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+              >
+                <option value={10000}>10 Seconds (Debug Mode)</option>
+                <option value={60000}>1 Minute</option>
+                <option value={120000}>2 Minutes</option>
+                <option value={300000}>5 Minutes</option>
+                <option value={600000}>10 Minutes</option>
+              </select>
+            </div>
+          )}
         </div>
       </motion.div>
 

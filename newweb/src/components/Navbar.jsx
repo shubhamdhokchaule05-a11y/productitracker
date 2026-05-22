@@ -1,13 +1,14 @@
 import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
-import { FiSun, FiMoon, FiBell, FiSearch, FiMenu, FiUser } from 'react-icons/fi';
+import { FiSun, FiMoon, FiBell, FiSearch, FiMenu, FiUser, FiClock } from 'react-icons/fi';
 import { ThemeContext } from '../context/ThemeContext';
 import { AppContext } from '../context/AppContext';
 import { currentUser } from '../data/dummyData';
+import { formatTime } from '../utils/helpers';
 
 function Navbar({ onMenuToggle }) {
   const { isDark, toggleTheme } = useContext(ThemeContext);
-  const { user } = useContext(AppContext);
+  const { user, status, seconds, breakSeconds } = useContext(AppContext);
   const [search, setSearch] = useState('');
   const [showProfile, setShowProfile] = useState(false);
 
@@ -35,7 +36,24 @@ function Navbar({ onMenuToggle }) {
         </div>
       </div>
 
-      <div className="flex items-center gap-2 flex-shrink-0">
+      <div className="flex items-center gap-3 flex-shrink-0">
+        {/* Real-time Global Active Timer Widget */}
+        {(status === 'working' || status === 'break') && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold font-mono shadow-sm tabular-nums transition-colors duration-300 ${
+              status === 'working' 
+                ? 'bg-emerald-50/80 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 border-emerald-100 dark:border-emerald-900/30' 
+                : 'bg-amber-50/80 dark:bg-amber-950/20 text-amber-600 dark:text-amber-400 border-amber-100 dark:border-amber-900/30'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full ${status === 'working' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+            <span>{status === 'working' ? 'Working: ' : 'On Break: '}</span>
+            <span>{status === 'working' ? formatTime(seconds) : formatTime(breakSeconds)}</span>
+          </motion.div>
+        )}
+
         <motion.button
           whileTap={{ scale: 0.9 }}
           onClick={toggleTheme}

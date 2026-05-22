@@ -1,81 +1,27 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useContext } from 'react';
 import { motion } from 'framer-motion';
 import { FiPlay, FiPause, FiSquare, FiClock, FiCalendar, FiTrash2 } from 'react-icons/fi';
 import { AppContext } from '../context/AppContext';
 import Badge from '../components/ui/Badge';
-import { formatTime, getCurrentTime, getTodayDate, formatDate } from '../utils/helpers';
+import { formatTime, formatDate, getTodayDate } from '../utils/helpers';
 import toast from 'react-hot-toast';
 
 const STATUS = { IDLE: 'idle', WORKING: 'working', BREAK: 'break', DONE: 'done' };
 
 function Attendance() {
-  const { attendance, addAttendance, updateAttendance, deleteAttendance } = useContext(AppContext);
-  const [status, setStatus] = useState(STATUS.IDLE);
-  const [seconds, setSeconds] = useState(0);
-  const [breakSeconds, setBreakSeconds] = useState(0);
-  const [punchInTime, setPunchInTime] = useState(null);
-  const [punchOutTime, setPunchOutTime] = useState(null);
-  const [todayId, setTodayId] = useState(null);
-  const [isOnBreak, setIsOnBreak] = useState(false);
-
-  useEffect(() => {
-    let interval;
-    if (status === STATUS.WORKING) {
-      interval = setInterval(() => setSeconds((s) => s + 1), 1000);
-    } else if (status === STATUS.BREAK) {
-      interval = setInterval(() => setBreakSeconds((s) => s + 1), 1000);
-    }
-    return () => clearInterval(interval);
-  }, [status]);
-
-  const handlePunchIn = async () => {
-    const now = getCurrentTime();
-    setPunchInTime(now);
-    setStatus(STATUS.WORKING);
-    setSeconds(0);
-    setBreakSeconds(0);
-    const dbId = await addAttendance({ date: getTodayDate(), punchIn: now, punchOut: '-', breakTime: '0 min', totalHours: '-', status: 'present' });
-    if (dbId) {
-      setTodayId(dbId);
-    }
-    toast.success(`Punched in at ${now} 🎉`);
-  };
-
-  const handleBreakStart = () => {
-    const now = getCurrentTime();
-    setIsOnBreak(true);
-    setStatus(STATUS.BREAK);
-    if (todayId) {
-      updateAttendance(todayId, { breakStart: now });
-    }
-    toast('Break started ☕', { icon: '⏸' });
-  };
-
-  const handleBreakEnd = () => {
-    const now = getCurrentTime();
-    setIsOnBreak(false);
-    setStatus(STATUS.WORKING);
-    if (todayId) {
-      updateAttendance(todayId, { breakEnd: now });
-    }
-    toast.success('Break ended, back to work!');
-  };
-
-  const handlePunchOut = () => {
-    const now = getCurrentTime();
-    setPunchOutTime(now);
-    setStatus(STATUS.DONE);
-    const totalMins = Math.floor(seconds / 60);
-    const breakMins = Math.floor(breakSeconds / 60);
-    const netMins = totalMins - breakMins;
-    const h = Math.floor(netMins / 60);
-    const m = netMins % 60;
-    const totalStr = `${h}h ${m}m`;
-    if (todayId) {
-      updateAttendance(todayId, { punchOut: now, breakTime: `${breakMins} min`, totalHours: totalStr });
-    }
-    toast.success(`Punched out at ${now}. Total: ${totalStr}`);
-  };
+  const { 
+    attendance, 
+    deleteAttendance,
+    status, 
+    seconds, 
+    breakSeconds, 
+    punchInTime, 
+    punchOutTime, 
+    handlePunchIn, 
+    handleBreakStart, 
+    handleBreakEnd, 
+    handlePunchOut
+  } = useContext(AppContext);
 
   const ringColor = status === STATUS.WORKING ? 'from-indigo-500 to-purple-500'
     : status === STATUS.BREAK ? 'from-amber-400 to-orange-500'
