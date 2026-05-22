@@ -97,8 +97,11 @@ def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
 # --- Tasks ---
 
 @app.get("/tasks/", response_model=list[schemas.Task])
-def read_tasks(db: Session = Depends(get_db)):
-    return db.query(models.Task).order_by(models.Task.id.desc()).all()
+def read_tasks(user_id: int = None, db: Session = Depends(get_db)):
+    query = db.query(models.Task)
+    if user_id is not None:
+        query = query.filter(models.Task.owner_id == user_id)
+    return query.order_by(models.Task.id.desc()).all()
 
 @app.post("/tasks/", response_model=schemas.Task)
 def create_task(task: schemas.TaskCreate, db: Session = Depends(get_db)):
@@ -135,8 +138,11 @@ def delete_task(task_id: int, db: Session = Depends(get_db)):
 # --- Attendance ---
 
 @app.get("/attendance/", response_model=list[schemas.Attendance])
-def read_attendance(db: Session = Depends(get_db)):
-    return db.query(models.Attendance).order_by(models.Attendance.id.desc()).all()
+def read_attendance(user_id: int = None, db: Session = Depends(get_db)):
+    query = db.query(models.Attendance)
+    if user_id is not None:
+        query = query.filter(models.Attendance.user_id == user_id)
+    return query.order_by(models.Attendance.id.desc()).all()
 
 @app.post("/attendance/", response_model=schemas.Attendance)
 def create_attendance(att: schemas.AttendanceCreate, db: Session = Depends(get_db)):

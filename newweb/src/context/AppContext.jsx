@@ -15,8 +15,9 @@ export function AppProvider({ children }) {
   });
 
   const fetchTasks = useCallback(async () => {
+    if (!user || !user.id) return;
     try {
-      const response = await axios.get(`${API_URL}/tasks/`);
+      const response = await axios.get(`${API_URL}/tasks/?user_id=${user.id}`);
       const mapped = response.data.map(t => ({
         ...t,
         dueDate: t.due_date
@@ -25,11 +26,12 @@ export function AppProvider({ children }) {
     } catch (error) {
       console.error('Error fetching tasks:', error);
     }
-  }, []);
+  }, [user]);
 
   const fetchAttendance = useCallback(async () => {
+    if (!user || !user.id) return;
     try {
-      const response = await axios.get(`${API_URL}/attendance/`);
+      const response = await axios.get(`${API_URL}/attendance/?user_id=${user.id}`);
       const mapped = response.data.map(a => ({
         ...a,
         punchIn: a.check_in || '-',
@@ -41,7 +43,7 @@ export function AppProvider({ children }) {
     } catch (error) {
       console.error('Error fetching attendance:', error);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     if (user) {
