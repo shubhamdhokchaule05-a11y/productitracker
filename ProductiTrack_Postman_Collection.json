@@ -1,0 +1,574 @@
+{
+	"info": {
+		"_postman_id": "c1f75e3f-67d7-4b7b-ba52-092570b77cc4",
+		"name": "ProductiTrack API Collection",
+		"description": "Collection of all API endpoints for ProductiTrack, containing Users & Auth, Tasks, Attendance, Leaves, Notifications, and App Usage tracking.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "General",
+			"item": [
+				{
+					"name": "Root / Status Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Users & Auth",
+			"item": [
+				{
+					"name": "Register User",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@example.com\",\n  \"name\": \"John Doe\",\n  \"password\": \"securepassword\",\n  \"role\": \"User\",\n  \"phone\": \"+1234567890\",\n  \"department\": \"Engineering\",\n  \"location\": \"New York\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/users/"
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"securepassword\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/login/"
+					},
+					"response": []
+				},
+				{
+					"name": "List Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/users/?skip=0&limit=100",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								""
+							],
+							"query": [
+								{
+									"key": "skip",
+									"value": "0"
+								},
+								{
+									"key": "limit",
+									"value": "100"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Profile (Admin/Self Password)",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"John Updated\",\n  \"phone\": \"+1987654321\",\n  \"department\": \"Product\",\n  \"location\": \"Boston\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseUrl}}/users/1?updater_id=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"users",
+								"1"
+							],
+							"query": [
+								{
+									"key": "updater_id",
+									"value": "1",
+									"description": "Required to verify permission. Admins can update all details, members can only update password."
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Forgot Password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@example.com\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/forgot-password/"
+					},
+					"response": []
+				},
+				{
+					"name": "Reset Password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@example.com\",\n  \"code\": \"123456\",\n  \"new_password\": \"mynewpassword123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/reset-password/"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tasks",
+			"item": [
+				{
+					"name": "Get Tasks",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/tasks/?user_id=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"tasks",
+								""
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "1",
+									"description": "Filter by user ID (optional)"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Task",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Complete Project Proposal\",\n  \"description\": \"Draft the initial proposal draft\",\n  \"status\": \"pending\",\n  \"priority\": \"medium\",\n  \"due_date\": \"2026-06-15\",\n  \"owner_id\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/tasks/"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Task",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Task Title\",\n  \"status\": \"completed\",\n  \"priority\": \"high\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/tasks/1"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Task",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": "{{baseUrl}}/tasks/1"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Attendance",
+			"item": [
+				{
+					"name": "Get Attendance",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/attendance/?user_id=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"attendance",
+								""
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "1",
+									"description": "Filter by user ID (optional)"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Attendance Log",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"date\": \"2026-06-09\",\n  \"check_in\": \"09:00:00\",\n  \"check_out\": \"17:00:00\",\n  \"break_time\": \"01:00:00\",\n  \"total_hours\": \"07:00:00\",\n  \"break_start\": \"13:00:00\",\n  \"break_end\": \"14:00:00\",\n  \"status\": \"Present\",\n  \"user_id\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/attendance/"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Attendance Log",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"check_out\": \"17:30:00\",\n  \"total_hours\": \"07:30:00\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/attendance/1"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Attendance Log",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": "{{baseUrl}}/attendance/1"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Leaves Management",
+			"item": [
+				{
+					"name": "Get Leave Requests",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/leaves/?user_id=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"leaves",
+								""
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "1",
+									"description": "Filter by user ID (optional)"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Apply for Leave",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"leave_type\": \"Sick Leave\",\n  \"start_date\": \"2026-06-15\",\n  \"end_date\": \"2026-06-16\",\n  \"reason\": \"Medical Checkup\",\n  \"user_id\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/leaves/"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Leave Status (Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"Approved\",\n  \"admin_notes\": \"Approved by Admin\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/leaves/1"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Leave Request",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": "{{baseUrl}}/leaves/1"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Notifications",
+			"item": [
+				{
+					"name": "Get Notifications",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/notifications/?user_id=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"notifications",
+								""
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "1",
+									"description": "Filter by user ID (optional)"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mark Notification Read",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": "{{baseUrl}}/notifications/1/read"
+					},
+					"response": []
+				},
+				{
+					"name": "Mark All Notifications Read",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/notifications/read-all?user_id=1",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"notifications",
+								"read-all"
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "App Usage Tracking",
+			"item": [
+				{
+					"name": "Log App Usage (Upsert)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"app_name\": \"Google Chrome\",\n  \"window_title\": \"ProductiTrack - Postman Docs\",\n  \"active_duration\": 30,\n  \"user_id\": 1\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{baseUrl}}/app-usage/"
+					},
+					"response": []
+				},
+				{
+					"name": "Get App Usage logs",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/app-usage/?user_id=1&start_date=2026-06-01&end_date=2026-06-09",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"app-usage",
+								""
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "1"
+								},
+								{
+									"key": "start_date",
+									"value": "2026-06-01"
+								},
+								{
+									"key": "end_date",
+									"value": "2026-06-09"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Productivity Summary",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/app-usage/summary/?user_id=1&start_date=2026-06-01&end_date=2026-06-09",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"app-usage",
+								"summary",
+								""
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "1"
+								},
+								{
+									"key": "start_date",
+									"value": "2026-06-01"
+								},
+								{
+									"key": "end_date",
+									"value": "2026-06-09"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete App Usages",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseUrl}}/app-usage/?user_id=1&date=2026-06-09",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"app-usage",
+								""
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "1"
+								},
+								{
+									"key": "date",
+									"value": "2026-06-09"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://127.0.0.1:8000",
+			"type": "string"
+		}
+	]
+}

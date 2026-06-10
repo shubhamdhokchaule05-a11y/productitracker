@@ -9,13 +9,27 @@ import SignupPage from './pages/SignupPage';
 import DashboardHome from './pages/DashboardHome';
 import Tasks from './pages/Tasks';
 import Attendance from './pages/Attendance';
+import Leaves from './pages/Leaves';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import AppUsage from './pages/AppUsage';
+import Users from './pages/Users';
 
 // Auth guard component
 function PrivateRoute({ children }) {
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
   return isLoggedIn ? children : <Navigate to="/login" replace />;
+}
+
+// Admin guard component
+function AdminRoute({ children }) {
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+  const saved = localStorage.getItem('userProfile');
+  const user = saved ? JSON.parse(saved) : null;
+  const isAdmin = user && user.role === 'Admin';
+  
+  if (!isLoggedIn) return <Navigate to="/login" replace />;
+  return isAdmin ? children : <Navigate to="/dashboard" replace />;
 }
 
 function App() {
@@ -38,8 +52,15 @@ function App() {
               <Route path="dashboard" element={<DashboardHome />} />
               <Route path="tasks" element={<Tasks />} />
               <Route path="attendance" element={<Attendance />} />
+              <Route path="leaves" element={<Leaves />} />
+              <Route path="app-usage" element={<AppUsage />} />
               <Route path="reports" element={<Reports />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="users" element={
+                <AdminRoute>
+                  <Users />
+                </AdminRoute>
+              } />
             </Route>
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>

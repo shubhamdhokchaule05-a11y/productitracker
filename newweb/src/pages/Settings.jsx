@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { motion } from 'framer-motion';
-import { FiUser, FiMail, FiPhone, FiMapPin, FiBriefcase, FiBell, FiSun, FiMoon, FiSave, FiCamera, FiLock, FiCoffee } from 'react-icons/fi';
+import { FiUser, FiMail, FiPhone, FiMapPin, FiBriefcase, FiBell, FiSun, FiMoon, FiSave, FiCamera, FiLock, FiCoffee, FiAlertCircle } from 'react-icons/fi';
 import { AppContext } from '../context/AppContext';
 import { ThemeContext } from '../context/ThemeContext';
 import { currentUser } from '../data/dummyData';
@@ -10,6 +10,7 @@ function Settings() {
   const { user, updateUser, idleSettings, setIdleSettings } = useContext(AppContext);
   const { isDark, toggleTheme } = useContext(ThemeContext);
   const displayUser = user || currentUser;
+  const isAdmin = displayUser.role === 'Admin';
 
   const [form, setForm] = useState({
     name: displayUser.name,
@@ -35,16 +36,40 @@ function Settings() {
     e.preventDefault();
     setSaving(true);
     
-    const payload = { name: form.name, email: form.email };
-    if (form.password) {
-      payload.password = form.password;
+    if (form.password && form.password.length < 8) {
+      toast.error('Password must be at least 8 characters');
+      setSaving(false);
+      return;
+    }
+    
+    let payload = {};
+    if (isAdmin) {
+      payload = {
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        role: form.role,
+        department: form.department,
+        location: form.location
+      };
+      if (form.password) {
+        payload.password = form.password;
+      }
+    } else {
+      // Member can only change password
+      if (!form.password) {
+        toast.error('Only Admins can modify profile details. Type a new password to update password.');
+        setSaving(false);
+        return;
+      }
+      payload = { password: form.password };
     }
     
     const result = await updateUser(payload);
     setSaving(false);
     
     if (result.success) {
-      toast.success('Profile updated successfully!');
+      toast.success(isAdmin ? 'Profile updated successfully!' : 'Password updated successfully!');
       setForm({ ...form, password: '' });
     } else {
       toast.error(result.message || 'Failed to update profile');
@@ -83,9 +108,11 @@ function Settings() {
             <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-3xl font-bold shadow-lg">
               {form.name.charAt(0)}
             </div>
-            <button className="absolute -bottom-2 -right-2 w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow hover:bg-indigo-500 transition-colors">
-              <FiCamera className="w-3.5 h-3.5" />
-            </button>
+            {isAdmin && (
+              <button className="absolute -bottom-2 -right-2 w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow hover:bg-indigo-500 transition-colors">
+                <FiCamera className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
           <div>
             <p className="text-lg font-semibold text-gray-900 dark:text-white">{displayUser.name}</p>
@@ -94,6 +121,14 @@ function Settings() {
           </div>
         </div>
 
+        {/* Warning Banner for Members */}
+        {!isAdmin && (
+          <div className="mb-5 p-4 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/30 rounded-xl text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2">
+            <FiAlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>Profile details (Name, Email, Role, Department, Location, Phone) are locked and can only be updated by an Admin. You can still change your password.</span>
+          </div>
+        )}
+
         {/* Profile Form */}
         <form onSubmit={handleProfileSave} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -101,46 +136,46 @@ function Settings() {
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Full Name</label>
               <div className="relative">
                 <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={`${inputClass} pl-10`} />
+                <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} disabled={!isAdmin} className={`${inputClass} pl-10 disabled:opacity-60 disabled:cursor-not-allowed`} />
               </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Email</label>
               <div className="relative">
                 <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className={`${inputClass} pl-10`} />
+                <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} disabled={!isAdmin} className={`${inputClass} pl-10 disabled:opacity-60 disabled:cursor-not-allowed`} />
               </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Password (Leave blank to keep current)</label>
               <div className="relative">
                 <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={`${inputClass} pl-10`} placeholder="New password" />
+                <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} className={`${inputClass} pl-10`} placeholder="New password (min 8 chars)" />
               </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Phone</label>
               <div className="relative">
                 <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className={`${inputClass} pl-10`} />
+                <input type="text" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} disabled={!isAdmin} className={`${inputClass} pl-10 disabled:opacity-60 disabled:cursor-not-allowed`} />
               </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Job Role</label>
               <div className="relative">
                 <FiBriefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="text" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} className={`${inputClass} pl-10`} />
+                <input type="text" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} disabled={!isAdmin} className={`${inputClass} pl-10 disabled:opacity-60 disabled:cursor-not-allowed`} />
               </div>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Department</label>
-              <input type="text" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} className={inputClass} />
+              <input type="text" value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} disabled={!isAdmin} className={`${inputClass} disabled:opacity-60 disabled:cursor-not-allowed`} />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1.5">Location</label>
               <div className="relative">
                 <FiMapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input type="text" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className={`${inputClass} pl-10`} />
+                <input type="text" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} disabled={!isAdmin} className={`${inputClass} pl-10 disabled:opacity-60 disabled:cursor-not-allowed`} />
               </div>
             </div>
           </div>

@@ -11,6 +11,8 @@ export const STATUS = { IDLE: 'idle', WORKING: 'working', BREAK: 'break', DONE: 
 export function AppProvider({ children }) {
   const [tasks, setTasks] = useState([]);
   const [attendance, setAttendance] = useState([]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('userProfile');
     const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
@@ -18,14 +20,26 @@ export function AppProvider({ children }) {
     return null;
   });
 
-  // --- Lifted Attendance Timer States ---
-  const [status, setStatus] = useState(() => localStorage.getItem('timer_status') || 'idle');
-  const [seconds, setSeconds] = useState(() => Number(localStorage.getItem('timer_seconds')) || 0);
-  const [breakSeconds, setBreakSeconds] = useState(() => Number(localStorage.getItem('timer_breakSeconds')) || 0);
-  const [punchInTime, setPunchInTime] = useState(() => localStorage.getItem('timer_punchInTime') || null);
-  const [punchOutTime, setPunchOutTime] = useState(() => localStorage.getItem('timer_punchOutTime') || null);
-  const [todayId, setTodayId] = useState(() => Number(localStorage.getItem('timer_todayId')) || null);
-  const [isOnBreak, setIsOnBreak] = useState(() => localStorage.getItem('timer_isOnBreak') === 'true');
+  // --- Lifted Attendance Timer States with Daily Reset Check ---
+  const todayDateStr = getTodayDate();
+  const savedTimerDate = localStorage.getItem('timer_date');
+  const isToday = savedTimerDate === todayDateStr;
+
+  const initialStatus = isToday ? (localStorage.getItem('timer_status') || 'idle') : 'idle';
+  const initialSeconds = isToday ? (Number(localStorage.getItem('timer_seconds')) || 0) : 0;
+  const initialBreakSeconds = isToday ? (Number(localStorage.getItem('timer_breakSeconds')) || 0) : 0;
+  const initialPunchInTime = isToday ? (localStorage.getItem('timer_punchInTime') || null) : null;
+  const initialPunchOutTime = isToday ? (localStorage.getItem('timer_punchOutTime') || null) : null;
+  const initialTodayId = isToday ? (Number(localStorage.getItem('timer_todayId')) || null) : null;
+  const initialIsOnBreak = isToday ? (localStorage.getItem('timer_isOnBreak') === 'true') : false;
+
+  const [status, setStatus] = useState(initialStatus);
+  const [seconds, setSeconds] = useState(initialSeconds);
+  const [breakSeconds, setBreakSeconds] = useState(initialBreakSeconds);
+  const [punchInTime, setPunchInTime] = useState(initialPunchInTime);
+  const [punchOutTime, setPunchOutTime] = useState(initialPunchOutTime);
+  const [todayId, setTodayId] = useState(initialTodayId);
+  const [isOnBreak, setIsOnBreak] = useState(initialIsOnBreak);
   
   // Idle Alert States
   const [isIdleModalOpen, setIsIdleModalOpen] = useState(false);
@@ -51,7 +65,8 @@ export function AppProvider({ children }) {
     localStorage.setItem('timer_punchOutTime', punchOutTime || '');
     localStorage.setItem('timer_todayId', todayId || '');
     localStorage.setItem('timer_isOnBreak', isOnBreak);
-  }, [status, seconds, breakSeconds, punchInTime, punchOutTime, todayId, isOnBreak]);
+    localStorage.setItem('timer_date', todayDateStr);
+  }, [status, seconds, breakSeconds, punchInTime, punchOutTime, todayId, isOnBreak, todayDateStr]);
 
   // Sync Settings to localStorage
   useEffect(() => {
@@ -100,12 +115,103 @@ export function AppProvider({ children }) {
     }
   }, [user]);
 
+  const fetchLeaveRequests = useCallback(async () => {
+    if (!user || !user.id) return;
+    try {
+      const url = user.role === 'Admin' ? `${API_URL}/leaves/` : `${API_URL}/leaves/?user_id=${user.id}`;
+      const response = await axios.get(url);
+      setLeaveRequests(response.data);
+    } catch (error) {
+      console.error('Error fetching leaves:', error);
+    }
+  }, [user]);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!user || !user.id) return;
+    try {
+      const response = await axios.get(`${API_URL}/notifications/?user_id=${user.id}`);
+      setNotifications(response.data);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+    }
+  }, [user]);
+
   useEffect(() => {
     if (user) {
       fetchTasks();
       fetchAttendance();
+      fetchLeaveRequests();
+      fetchNotifications();
     }
-  }, [user, fetchTasks, fetchAttendance]);
+  }, [user, fetchTasks, fetchAttendance, fetchLeaveRequests, fetchNotifications]);
+
+  const applyForLeave = async (leaveData) => {
+    try {
+      const payload = {
+        ...leaveData,
+        user_id: user?.id
+      };
+      const response = await axios.post(`${API_URL}/leaves/`, payload);
+      setLeaveRequests((prev) => [response.data, ...prev]);
+      toast.success('Leave request submitted! 📝');
+      fetchNotifications();
+      return { success: true };
+    } catch (error) {
+      console.error('Error applying for leave:', error);
+      toast.error('Failed to apply for leave');
+      return { success: false };
+    }
+  };
+
+  const updateLeaveStatus = async (leaveId, newStatus, adminNotes) => {
+    try {
+      const payload = {
+        status: newStatus,
+        admin_notes: adminNotes || ""
+      };
+      const response = await axios.put(`${API_URL}/leaves/${leaveId}`, payload);
+      setLeaveRequests((prev) => prev.map((l) => (l.id === leaveId ? response.data : l)));
+      toast.success(`Leave request ${newStatus.toLowerCase()}!`);
+      return { success: true };
+    } catch (error) {
+      console.error('Error updating leave status:', error);
+      toast.error('Failed to update leave status');
+      return { success: false };
+    }
+  };
+
+  const deleteLeaveRequest = async (leaveId) => {
+    try {
+      await axios.delete(`${API_URL}/leaves/${leaveId}`);
+      setLeaveRequests((prev) => prev.filter((l) => l.id !== leaveId));
+      toast.success('Leave request cancelled');
+      return { success: true };
+    } catch (error) {
+      console.error('Error cancelling leave request:', error);
+      toast.error('Failed to cancel leave request');
+      return { success: false };
+    }
+  };
+
+  const markNotificationRead = async (id) => {
+    try {
+      const response = await axios.put(`${API_URL}/notifications/${id}/read`);
+      setNotifications((prev) => prev.map((n) => (n.id === id ? response.data : n)));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    if (!user || !user.id) return;
+    try {
+      await axios.put(`${API_URL}/notifications/read-all?user_id=${user.id}`);
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+      toast.success('All notifications marked as read');
+    } catch (error) {
+      console.error('Error marking notifications as read:', error);
+    }
+  };
 
   const loginUser = async (email, password) => {
     try {
@@ -133,6 +239,8 @@ export function AppProvider({ children }) {
     setUser(null);
     setTasks([]);
     setAttendance([]);
+    setLeaveRequests([]);
+    setNotifications([]);
     setStatus(STATUS.IDLE);
     setSeconds(0);
     setBreakSeconds(0);
@@ -151,6 +259,7 @@ export function AppProvider({ children }) {
     localStorage.removeItem('timer_punchOutTime');
     localStorage.removeItem('timer_todayId');
     localStorage.removeItem('timer_isOnBreak');
+    localStorage.removeItem('timer_date');
   };
 
   const addTask = async (task) => {
@@ -271,13 +380,50 @@ export function AppProvider({ children }) {
     }
   };
 
-  const updateUser = async (updates) => {
+  const fetchAllUsers = useCallback(async () => {
     try {
-      const response = await axios.put(`${API_URL}/users/${user.id}`, updates);
-      const updated = { ...user, ...response.data };
-      setUser(updated);
-      localStorage.setItem('userProfile', JSON.stringify(updated));
-      return { success: true };
+      const response = await axios.get(`${API_URL}/users/`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching all users:', error);
+      return [];
+    }
+  }, []);
+
+  const requestPasswordResetCode = async (email) => {
+    try {
+      const response = await axios.post(`${API_URL}/forgot-password/`, { email });
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      console.error('Error requesting password reset code:', error);
+      return { success: false, message: error.response?.data?.detail || 'Request failed' };
+    }
+  };
+
+  const resetPasswordWithCode = async (email, code, newPassword) => {
+    try {
+      const response = await axios.post(`${API_URL}/reset-password/`, { 
+        email, 
+        code, 
+        new_password: newPassword 
+      });
+      return { success: true, message: response.data.message };
+    } catch (error) {
+      console.error('Error resetting password with code:', error);
+      return { success: false, message: error.response?.data?.detail || 'Reset failed' };
+    }
+  };
+
+  const updateUser = async (updates, targetUserId = null) => {
+    try {
+      const idToUpdate = targetUserId || user?.id;
+      const response = await axios.put(`${API_URL}/users/${idToUpdate}?updater_id=${user?.id}`, updates);
+      if (idToUpdate === user?.id) {
+        const updated = { ...user, ...response.data };
+        setUser(updated);
+        localStorage.setItem('userProfile', JSON.stringify(updated));
+      }
+      return { success: true, data: response.data };
     } catch (error) {
       console.error('Error updating user:', error);
       return { success: false, message: error.response?.data?.detail || 'Update failed' };
@@ -389,13 +535,19 @@ export function AppProvider({ children }) {
     return () => clearInterval(checkIdle);
   }, [user, status, lastActivity, idleSettings, handleBreakStart]);
 
+  // --- Simulated Active App Tracker ---
+  const [currentActiveApp, setCurrentActiveApp] = useState(null);
+
   return (
     <AppContext.Provider
       value={{
         tasks, addTask, updateTask, deleteTask, toggleTask,
         attendance, addAttendance, updateAttendance, deleteAttendance,
+        leaveRequests, applyForLeave, updateLeaveStatus, deleteLeaveRequest, fetchLeaveRequests,
+        notifications, fetchNotifications, markNotificationRead, markAllNotificationsRead,
         user, updateUser, setUser,
-        registerUser, loginUser, logoutUser,
+        registerUser, loginUser, logoutUser, fetchAllUsers,
+        requestPasswordResetCode, resetPasswordWithCode,
         
         // Timer states
         status, setStatus,
@@ -410,7 +562,10 @@ export function AppProvider({ children }) {
         idleSettings, setIdleSettings,
         
         // Handlers
-        handlePunchIn, handleBreakStart, handleBreakEnd, handlePunchOut
+        handlePunchIn, handleBreakStart, handleBreakEnd, handlePunchOut,
+
+        // Simulated/Real-time App Tracker
+        currentActiveApp
       }}
     >
       {children}

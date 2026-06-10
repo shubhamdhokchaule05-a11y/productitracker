@@ -8,7 +8,7 @@ import { AppContext } from '../context/AppContext';
 function SignupPage() {
   const navigate = useNavigate();
   const { registerUser } = useContext(AppContext);
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', role: 'Team Member' });
   const [showPass, setShowPass] = useState(false);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -20,7 +20,7 @@ function SignupPage() {
     else if (!/\S+@\S+\.\S+/.test(form.email)) errs.email = 'Enter a valid email';
     
     if (!form.password) errs.password = 'Password is required';
-    else if (form.password.length < 6) errs.password = 'Password must be at least 6 characters';
+    else if (form.password.length < 8) errs.password = 'Password must be at least 8 characters';
     
     if (form.password !== form.confirmPassword) errs.confirmPassword = 'Passwords do not match';
     
@@ -38,7 +38,7 @@ function SignupPage() {
       name: form.name,
       email: form.email,
       password: form.password,
-      role: 'Team Member',
+      role: form.role,
     };
     
     const result = await registerUser(newUser);
@@ -139,6 +139,21 @@ function SignupPage() {
                 />
               </div>
               {errors.confirmPassword && <p className="text-red-300 text-xs mt-1 ml-1">{errors.confirmPassword}</p>}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-white/80 mb-1.5">Role</label>
+              <div className="relative">
+                <select
+                  value={form.role}
+                  onChange={(e) => setForm({ ...form, role: e.target.value })}
+                  className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white text-sm focus:outline-none focus:border-indigo-400 focus:bg-white/15 transition-all outline-none"
+                  style={{ colorScheme: 'dark' }}
+                >
+                  <option value="Team Member" className="bg-gray-800 text-white">Team Member</option>
+                  <option value="Admin" className="bg-gray-800 text-white">Admin</option>
+                </select>
+              </div>
             </div>
 
             <motion.button

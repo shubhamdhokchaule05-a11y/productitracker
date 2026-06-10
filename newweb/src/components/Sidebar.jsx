@@ -4,20 +4,24 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiGrid, FiCheckSquare, FiClock, FiBarChart2,
   FiSettings, FiLogOut, FiChevronLeft, FiZap,
+  FiCalendar, FiMonitor, FiUsers
 } from 'react-icons/fi';
 import { AppContext } from '../context/AppContext';
 
-const navItems = [
-  { to: '/dashboard', icon: FiGrid, label: 'Dashboard' },
-  { to: '/tasks', icon: FiCheckSquare, label: 'Tasks' },
-  { to: '/attendance', icon: FiClock, label: 'Attendance' },
-  { to: '/reports', icon: FiBarChart2, label: 'Reports' },
-  { to: '/settings', icon: FiSettings, label: 'Settings' },
-];
-
 function Sidebar({ isOpen, onToggle }) {
   const navigate = useNavigate();
-  const { logoutUser } = useContext(AppContext);
+  const { logoutUser, user } = useContext(AppContext);
+
+  const navItems = [
+    { to: '/dashboard', icon: FiGrid, label: 'Dashboard' },
+    { to: '/tasks', icon: FiCheckSquare, label: 'Tasks' },
+    { to: '/attendance', icon: FiClock, label: 'Attendance' },
+    { to: '/leaves', icon: FiCalendar, label: 'Leaves' },
+    { to: '/app-usage', icon: FiMonitor, label: 'App Usage' },
+    { to: '/reports', icon: FiBarChart2, label: 'Reports' },
+    ...(user?.role === 'Admin' ? [{ to: '/users', icon: FiUsers, label: 'Users' }] : []),
+    { to: '/settings', icon: FiSettings, label: 'Settings' },
+  ];
 
   const handleLogout = () => {
     logoutUser();
